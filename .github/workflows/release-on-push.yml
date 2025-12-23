@@ -1,0 +1,76 @@
+name: Build + Release on every push
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-on-push-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev libjansson-dev
+
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ncurses jansson
+
+      - name: Build
+        run: make
+
+      - name: Package
+        shell: bash
+        run: |
+          chmod +x trivytui
+          mkdir -p dist
+          TAR="trivytui-${{ runner.os }}-${{ github.sha }}.tar.gz"
+          tar -czf "dist/${TAR}" trivytui README.md LICENSE
+
+      - name: Upload artifact for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ runner.os }}
+          path: dist/*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      # Creates a tag if it doesn't exist and publishes the release.
+      # "commit" is used to create the tag pointing at this push. :contentReference[oaicite:4]{index=4}
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ci-${{ github.run_number }}
+          commit: ${{ github.sha }}
+          name: CI build ${{ github.run_number }}
+          prerelease: true
+          makeLatest: false
+          generateReleaseNotes: true
+          artifacts: "dist/**/*.tar.gz"
