@@ -11,7 +11,7 @@ vulnerabilities, secrets, and licenses.
 - Works with older Trivy versions by falling back to supported flags.
 
 ## Requirements
-- POSIX-like OS with `/bin/sh` and `/tmp` (Linux/macOS).
+- Linux.
 - Build deps: `ncurses` and `jansson` development headers.
 - Trivy in `PATH` (auto-installed if missing).
 - Docker optional (only needed for image scans).
