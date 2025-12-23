@@ -1,7 +1,7 @@
 # Trivy TUI
 
-Terminal UI for [Trivy](https://github.com/aquasecurity/trivy) scanning, written in C with ncurses.
-It guides filesystem or Docker image scans and presents colorized, scrollable results for
+Terminal UI for [Trivy](https://github.com/aquasecurity/trivy) scanning, written in C with ncurses.      
+It guides filesystem or Docker image scans and presents colorized, scrollable results for      
 vulnerabilities, secrets, and licenses.
 
 ## Highlights
