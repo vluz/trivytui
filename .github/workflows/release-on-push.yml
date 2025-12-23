@@ -1,4 +1,4 @@
-name: Build + Release on every push
+name: Build + Release (every push)
 
 on:
   push:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-on-push-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,7 +43,8 @@ jobs:
         run: |
           chmod +x trivytui
           mkdir -p dist
-          TAR="trivytui-${{ runner.os }}-${{ github.sha }}.tar.gz"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAR="trivytui-${{ runner.os }}-${SHORT_SHA}.tar.gz"
           tar -czf "dist/${TAR}" trivytui README.md LICENSE
 
       - name: Upload artifact for release job
@@ -62,15 +63,15 @@ jobs:
         with:
           path: dist
 
-      # Creates a tag if it doesn't exist and publishes the release.
-      # "commit" is used to create the tag pointing at this push. :contentReference[oaicite:4]{index=4}
-      - name: Create GitHub Release
+      - name: Create GitHub Release (unique per commit)
         uses: ncipollo/release-action@v1
         with:
-          tag: ci-${{ github.run_number }}
+          tag: ci-${{ github.sha }}
           commit: ${{ github.sha }}
-          name: CI build ${{ github.run_number }}
+          name: CI build ${{ github.sha }}
           prerelease: true
           makeLatest: false
           generateReleaseNotes: true
+          allowUpdates: true
+          replaceArtifacts: true
           artifacts: "dist/**/*.tar.gz"
