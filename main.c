@@ -21,7 +21,7 @@
  * - Integer overflow checks in dynamic allocations
  * - Race condition fixes in temporary file handling
  *
- * @author Weekend Project (2024)
+ * @author Vic - Weekend Project (2025)
  * @license CC0 1.0 Universal (Public Domain)
  * @version 0.9.1
  * @date 2025-2026
