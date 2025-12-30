@@ -6,7 +6,7 @@
  * application. Tests are written using a minimal testing framework to
  * avoid external dependencies.
  *
- * @author Security Enhancement Team
+ * @author Security Enhancement Team :)
  * @date 2025-2026
  */
 
