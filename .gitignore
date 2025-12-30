@@ -1,0 +1,18 @@
+# Build artifacts
+trivytui
+test_trivytui
+*.o
+
+# Package build directory
+build/
+
+# Editor and IDE files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
