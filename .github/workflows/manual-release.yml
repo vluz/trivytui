@@ -1,0 +1,103 @@
+name: Build + Release (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev libjansson-dev
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          make
+
+      - name: Test (capture output)
+        shell: bash
+        run: |
+          set -euo pipefail
+          make test | tee test-output.txt
+
+      - name: Build packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            rockylinux:8 \
+            bash -lc "bash ./build-packages.sh"
+
+      - name: Compute prerelease tag
+        id: version
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
+          latest_tag="$(curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}" | python - <<'PY'
+            import json
+            import re
+            import sys
+
+            data = json.load(sys.stdin)
+            tag = data.get("tag_name", "").strip()
+            print(tag)
+            PY
+          )"
+          latest_tag="${latest_tag#v}"
+          if [[ -z "${latest_tag}" ]]; then
+            echo "Latest release tag not found." >&2
+            exit 1
+          fi
+          if [[ "${latest_tag}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+          else
+            echo "Latest tag '${latest_tag}' does not match x.y.z format." >&2
+            exit 1
+          fi
+          next_patch="$((patch + 1))"
+          pre_tag="${major}.${minor}.${next_patch}-pre"
+          echo "pre_tag=${pre_tag}" >> "${GITHUB_OUTPUT}"
+          echo "release_name=trivytui v${pre_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub prerelease
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.pre_tag }}
+          commit: ${{ github.sha }}
+          name: ${{ steps.version.outputs.release_name }}
+          prerelease: true
+          makeLatest: false
+          generateReleaseNotes: true
+          artifacts: |
+            trivytui
+            test_trivytui
+            build/SHA256SUMS
+            build/*.deb
+            build/*.rpm
+            build/*.tar.gz
