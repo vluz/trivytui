@@ -39,8 +39,10 @@ $(TARGET): $(SRCS)
 $(TEST_TARGET): $(TEST_SRCS)
 	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_SRCS) -lm
 
-test: $(TEST_TARGET)
+test:
 	@echo "Running unit tests..."
+	@$(MAKE) -B $(TEST_TARGET)
+	@chmod +x $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 check: test

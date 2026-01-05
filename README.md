@@ -1,15 +1,15 @@
 # Trivy TUI
 
-Terminal UI for [Trivy](https://github.com/aquasecurity/trivy) scanning, written in C with ncurses.
-It guides filesystem or Docker image scans and presents colorized, scrollable results for
+Terminal UI for [Trivy](https://github.com/aquasecurity/trivy) scanning, written in C with ncurses.      
+It guides filesystem or Docker image scans and presents colorized, scrollable results for      
 vulnerabilities, secrets, and licenses.
 
-Built as weekend project to scare my sysadmin colleagues. :)
+Built as over-the-holidays project to scare my sysadmin colleagues. :)      
 Utility and convenience might also been my goals but scaring was definitely up there.
 
 **Version 0.9.1** - Security hardened with comprehensive input validation, buffer overflow protection, and improved code quality.
 
-Tested in Rocky Linux 8.10 and Ubuntu 24.04 LTS.
+Tested in Rocky Linux 8.10, Ubuntu 24.04 LTS and Debian 13.2.
 
 This was done for my purposes, any feature or enhancement suggestions are welcome.
 
@@ -82,13 +82,13 @@ To create RPM and DEB packages (requires Rocky Linux 8.10 or compatible):
 ```bash
 # Build both RPM and DEB packages
 sudo make packages
-
-# Packages will be created in build/ directory:
-# - trivytui-0.9.1-1.el8.x86_64.rpm
-# - trivytui_0.9.1-1_amd64.deb
-# - trivytui-0.9.1.tar.gz
-# - SHA256SUMS
 ```
+
+  Packages will be created in build/ directory:
+  - trivytui-0.9.1-1.el8.x86_64.rpm
+  - trivytui_0.9.1-1_amd64.deb
+  - trivytui-0.9.1.tar.gz
+  - SHA256SUMS
 
 The packaging script uses:
 - `rpmbuild` for RPM creation
@@ -208,6 +208,27 @@ trivy --version
 trivy image --download-db-only --no-progress
 ```
 
+## Airgapped Install (Offline)
+Two helper scripts are provided under `airgap/` to stage Trivy and its DB on a connected machine and install them on an airgapped host.
+
+**1) On a machine with internet:**
+```bash
+# Downloads latest Trivy release assets + DB cache into ./airgap
+bash airgap/stage-download-trivy.sh
+```
+This produces `trivy-cache.tgz` plus platform packages (RPM/DEB) and a tarball.
+
+**2) Transfer files to the airgapped machine:**
+- `trivy_*.deb` (Ubuntu/Debian) or `trivy_*.rpm` (RHEL/Fedora)
+- `trivy-cache.tgz`
+- Optional: `trivy-offline-manifest.txt` and `trivy-offline-sha256sums.txt`
+
+**3) On the airgapped machine:**
+```bash
+sudo bash airgap/airgap-install-trivy.sh
+```
+By default, the cache is installed under `/var/lib/trivy`. Set `TRIVY_CACHE_DIR` to override.
+
 ## Development
 
 ### Code Quality
@@ -262,8 +283,9 @@ Search in descriptions:       /buffer overflow
 
 ## Changelog
 
-### Version 0.9.1 (2025)
+### Version 0.9.1 (2026)
 - **NEW Features**:
+  - Airgap staging and installation scripts added
   - History view with scan tracking and security scores
   - Automatic tracking of last 10 scans with statistics
   - Color-coded severity bar charts in history view

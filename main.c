@@ -21,7 +21,7 @@
  * - Integer overflow checks in dynamic allocations
  * - Race condition fixes in temporary file handling
  *
- * @author Vic - Weekend Project (2025)
+ * @author Weekend Project (2024)
  * @license CC0 1.0 Universal (Public Domain)
  * @version 0.9.1
  * @date 2025-2026
@@ -114,6 +114,7 @@ typedef struct {
 static void show_message(WINDOW *win, const char *msg);
 static bool scroll_view(WINDOW *win, StrList *lines, const char *raw_json);
 static void set_last_error(AppContext *ctx, const char *msg);
+static bool trivy_db_present(void);
 
 /* Global application context - reduced from 4 globals to 1 */
 static AppContext g_app_ctx = {
@@ -536,6 +537,13 @@ static bool output_has_flag_error(const char *out, const char *flag) {
         || strstr(out, "unrecognized option");
 }
 
+static bool output_has_db_download_error(const char *out) {
+    if (!out || !*out) return false;
+    if (strstr(out, "failed to download vulnerability DB")) return true;
+    if (strstr(out, "failed to download vulnerability database")) return true;
+    return strstr(out, "DB error") && strstr(out, "download");
+}
+
 /* Build Trivy scanner list based on current toggles. */
 static void build_scanner_list(char *buf, size_t buf_size, bool scan_secrets, bool scan_licenses) {
     if (!buf || buf_size == 0) return;
@@ -701,7 +709,7 @@ static int run_command_with_spinner_timeout(const char *const *argv, WINDOW *win
 /* Build Trivy argv with optional filters and limits. */
 static int build_trivy_args(const char *mode, const char *target,
                             const char *scanner_flag, const char *scanner_value,
-                            bool include_license_full,
+                            bool include_license_full, bool skip_db_update,
                             const char *severity, const char *ignorefile,
                             const char *timeout, const char *skip_dirs,
                             const char **argv, int argv_cap) {
@@ -716,6 +724,9 @@ static int build_trivy_args(const char *mode, const char *target,
     }
     if (include_license_full) {
         PUSH_ARG("--license-full");
+    }
+    if (skip_db_update) {
+        PUSH_ARG("--skip-db-update");
     }
     if (severity && *severity) {
         PUSH_ARG("--severity");
@@ -746,7 +757,7 @@ static int build_trivy_args(const char *mode, const char *target,
 static int run_trivy_scan_with_fallback(const char *mode, const char *target, WINDOW *win,
                                         const char *message, bool scan_secrets, bool scan_licenses,
                                         int severity_level, const char *ignorefile,
-                                        const char *timeout, const char *skip_dirs,
+                                        const char *timeout, const char *skip_dirs, bool skip_db_update,
                                         char **out_str) {
     char *out = NULL;
     char *err = NULL;
@@ -757,7 +768,7 @@ static int run_trivy_scan_with_fallback(const char *mode, const char *target, WI
     build_severity_list(severity_level, severity, sizeof(severity));
     const char *argv1[24];
     if (build_trivy_args(mode, target, "--scanners", scanners, scan_licenses,
-                         severity, ignorefile, timeout, skip_dirs,
+                         skip_db_update, severity, ignorefile, timeout, skip_dirs,
                          argv1, (int)(sizeof(argv1) / sizeof(argv1[0]))) < 0) {
         set_last_error(&g_app_ctx, "Failed to build Trivy arguments.");
         return 1;
@@ -785,7 +796,7 @@ static int run_trivy_scan_with_fallback(const char *mode, const char *target, WI
         err = NULL;
         const char *argv2[24];
         if (build_trivy_args(mode, target, "--scanners", scanners, false,
-                             severity, ignorefile, timeout, skip_dirs,
+                             skip_db_update, severity, ignorefile, timeout, skip_dirs,
                              argv2, (int)(sizeof(argv2) / sizeof(argv2[0]))) < 0) {
             set_last_error(&g_app_ctx, "Failed to build Trivy arguments.");
             return 1;
@@ -814,7 +825,7 @@ static int run_trivy_scan_with_fallback(const char *mode, const char *target, WI
         err = NULL;
         const char *argv3[24];
         if (build_trivy_args(mode, target, "--security-checks", scanners, false,
-                             severity, ignorefile, timeout, skip_dirs,
+                             skip_db_update, severity, ignorefile, timeout, skip_dirs,
                              argv3, (int)(sizeof(argv3) / sizeof(argv3[0]))) < 0) {
             set_last_error(&g_app_ctx, "Failed to build Trivy arguments.");
             return 1;
@@ -838,7 +849,7 @@ static int run_trivy_scan_with_fallback(const char *mode, const char *target, WI
             err = NULL;
             const char *argv4[24];
             if (build_trivy_args(mode, target, NULL, NULL, false,
-                                 severity, ignorefile, timeout, skip_dirs,
+                                 skip_db_update, severity, ignorefile, timeout, skip_dirs,
                                  argv4, (int)(sizeof(argv4) / sizeof(argv4[0]))) < 0) {
                 set_last_error(&g_app_ctx, "Failed to build Trivy arguments.");
                 return 1;
@@ -859,6 +870,18 @@ static int run_trivy_scan_with_fallback(const char *mode, const char *target, WI
     }
 
     if (rc != 0) {
+        bool db_download_error = output_has_db_download_error(err) || output_has_db_download_error(out);
+        if (db_download_error && !skip_db_update && trivy_db_present()) {
+            free(err);
+            if (out) {
+                free(out);
+                out = NULL;
+            }
+            if (out_str) *out_str = NULL;
+            return run_trivy_scan_with_fallback(mode, target, win, message,
+                                                scan_secrets, scan_licenses, severity_level,
+                                                ignorefile, timeout, skip_dirs, true, out_str);
+        }
         if (err && *err) set_last_error(&g_app_ctx, err);
         else if (out && *out) set_last_error(&g_app_ctx, out);
         else set_last_error(&g_app_ctx, "Trivy scan failed.");
@@ -962,6 +985,21 @@ static bool build_trivy_db_path(char *buf, size_t size, const char *cache, const
     memcpy(buf + cache_len + suffix_len, file, file_len);
     buf[cache_len + suffix_len + file_len] = '\0';
     return true;
+}
+
+static bool trivy_db_present(void) {
+    char cache[PATH_MAX];
+    if (!get_trivy_cache_dir(cache, sizeof(cache))) return false;
+    const char *files[] = {"metadata.json", "trivy.db"};
+    for (size_t i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
+        char path[PATH_MAX];
+        if (!build_trivy_db_path(path, sizeof(path), cache, files[i])) {
+            continue;
+        }
+        struct stat st;
+        if (stat(path, &st) == 0) return true;
+    }
+    return false;
 }
 
 static void format_age(time_t mtime, char *buf, size_t size) {
@@ -2738,7 +2776,7 @@ int main(void) {
                 const char *skip_dirs = root_skip_dirs_for_target(target, cfg.use_root_skip, cfg.root_skip_dirs);
                 int rc = run_trivy_scan_with_fallback("fs", target, stdscr, "Scanning filesystem...",
                                                       cfg.scan_secrets, cfg.scan_licenses, cfg.severity_level,
-                                                      cfg.ignore_file, cfg.timeout_value, skip_dirs, &output);
+                                                      cfg.ignore_file, cfg.timeout_value, skip_dirs, false, &output);
                 free(target);
                 if (rc == RC_CANCELED) {
                     show_message(stdscr, "Scan canceled. Press any key.");
@@ -2822,7 +2860,7 @@ int main(void) {
                 char *output = NULL;
                 int rc = run_trivy_scan_with_fallback("image", selected, stdscr, "Scanning image...",
                                                       cfg.scan_secrets, cfg.scan_licenses, cfg.severity_level,
-                                                      cfg.ignore_file, cfg.timeout_value, NULL, &output);
+                                                      cfg.ignore_file, cfg.timeout_value, NULL, false, &output);
                 free(selected);
                 if (rc == RC_CANCELED) {
                     show_message(stdscr, "Scan canceled. Press any key.");
@@ -2887,7 +2925,7 @@ int main(void) {
             }
             int rc = run_trivy_scan_with_fallback(mode, cfg.last_scan_target, stdscr, scan_msg,
                                                   cfg.scan_secrets, cfg.scan_licenses, cfg.severity_level,
-                                                  cfg.ignore_file, cfg.timeout_value, skip_dirs, &output);
+                                                  cfg.ignore_file, cfg.timeout_value, skip_dirs, false, &output);
             if (rc == RC_CANCELED) {
                 show_message(stdscr, "Scan canceled. Press any key.");
                 getch();
