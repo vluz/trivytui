@@ -55,18 +55,9 @@ jobs:
         run: |
           set -euo pipefail
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
-          latest_tag="$(curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          latest_tag=$(curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            "${api}" | python - <<'PY'
-            import json
-            import re
-            import sys
-
-            data = json.load(sys.stdin)
-            tag = data.get("tag_name", "").strip()
-            print(tag)
-            PY
-          )"
+            "${api}" | python -c 'import json,sys; print(json.load(sys.stdin).get("tag_name","").strip())')
           latest_tag="${latest_tag#v}"
           if [[ -z "${latest_tag}" ]]; then
             echo "Latest release tag not found." >&2
