@@ -283,6 +283,11 @@ Search in descriptions:       /buffer overflow
 
 ## Changelog
 
+### Version 0.9.2 (2026)
+- Added airgap helpers
+- Fixed small bugs
+- Fixed offline functionality
+
 ### Version 0.9.1 (2026)
 - **NEW Features**:
   - Airgap staging and installation scripts added
