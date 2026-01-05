@@ -44,7 +44,11 @@ NC='\033[0m' # No Color
 
 # Package information
 PKG_NAME="trivytui"
-PKG_VERSION="${1:-0.0.0}"
+PKG_VERSION_RAW="${1:-0.0.0}"
+PKG_VERSION="${PKG_VERSION_RAW}"
+if [[ "${PKG_VERSION}" == *-pre ]]; then
+    PKG_VERSION="${PKG_VERSION%-pre}.1"
+fi
 PKG_RELEASE="1"
 PKG_ARCH="x86_64"
 PKG_SUMMARY="Terminal UI for Trivy security scanner"
