@@ -89,9 +89,9 @@ sudo make packages
 ```
 
   Packages will be created in build/ directory:
-  - trivytui-0.9.1-1.el8.x86_64.rpm
-  - trivytui_0.9.1-1_amd64.deb
-  - trivytui-0.9.1.tar.gz
+  - trivytui-0.9.2-1.el8.x86_64.rpm
+  - trivytui_0.9.2-1_amd64.deb
+  - trivytui-0.9.2.tar.gz
   - SHA256SUMS
 
 The packaging script uses:

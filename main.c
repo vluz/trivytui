@@ -23,7 +23,7 @@
  *
  * @author Weekend Project (2024)
  * @license CC0 1.0 Universal (Public Domain)
- * @version 0.9.1
+ * @version 0.9.2
  * @date 2025-2026
  */
 

@@ -37,16 +37,6 @@ jobs:
           set -euo pipefail
           make test | tee test-output.txt
 
-      - name: Build packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            rockylinux:8 \
-            bash -lc "bash ./build-packages.sh"
-
       - name: Compute prerelease tag
         id: version
         shell: bash
@@ -75,6 +65,16 @@ jobs:
           pre_tag="${major}.${minor}.${next_patch}-pre"
           echo "pre_tag=${pre_tag}" >> "${GITHUB_OUTPUT}"
           echo "release_name=trivytui v${pre_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            rockylinux:8 \
+            bash -lc "bash ./build-packages.sh '${{ steps.version.outputs.pre_tag }}'"
 
       - name: Create GitHub prerelease
         uses: ncipollo/release-action@v1

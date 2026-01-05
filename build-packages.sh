@@ -16,7 +16,7 @@
 #   - Checksums: SHA256SUMS file for verification
 #   - Source tarball: Full source code archive
 #
-# Usage: sudo ./build-packages.sh
+# Usage: sudo ./build-packages.sh [version]
 #        or: sudo make packages
 #
 # Requirements:
@@ -44,7 +44,7 @@ NC='\033[0m' # No Color
 
 # Package information
 PKG_NAME="trivytui"
-PKG_VERSION="0.9.1"
+PKG_VERSION="${1:-0.0.0}"
 PKG_RELEASE="1"
 PKG_ARCH="x86_64"
 PKG_SUMMARY="Terminal UI for Trivy security scanner"
@@ -179,7 +179,8 @@ install -m 0644 ${SCRIPT_DIR}/README.md %{buildroot}%{_docdir}/%{name}/README.md
 
 %changelog
 * $(date '+%a %b %d %Y') ${MAINTAINER} - ${PKG_VERSION}-${PKG_RELEASE}
-- Version 0.9.1 release
+- Version 0.9.2 release
+- Added airgapped scripts
 - Added history view with scan tracking and security scores
 - Added search & filter in report viewer
 - Added export to HTML and Markdown formats
