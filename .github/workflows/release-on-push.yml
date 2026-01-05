@@ -44,7 +44,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            rockylinux:8.10 \
+            rockylinux:8 \
             bash -lc "bash ./build-packages.sh"
 
       - name: Create GitHub prerelease
