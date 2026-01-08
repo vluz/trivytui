@@ -23,7 +23,7 @@
  *
  * @author Weekend Project (2024)
  * @license CC0 1.0 Universal (Public Domain)
- * @version 0.9.2
+ * @version 0.9.3
  * @date 2025-2026
  */
 
@@ -54,6 +54,7 @@
 extern char *realpath(const char *restrict path, char *restrict resolved_path);
 extern char *strcasestr(const char *haystack, const char *needle);
 
+/* Not used */
 #define INSTALL_SCRIPT "https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh"
 
 #ifndef PATH_MAX
@@ -62,6 +63,11 @@ extern char *strcasestr(const char *haystack, const char *needle);
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
+#endif
+
+/** Application version (defined at compile time via -DAPP_VERSION) */
+#ifndef APP_VERSION
+#define APP_VERSION "unknown"
 #endif
 
 /** Return code when user cancels an operation */
@@ -2014,6 +2020,40 @@ static StrList filter_lines(const StrList *lines, const char *search_term) {
 }
 
 /**
+ * @brief Escapes HTML special characters to prevent injection
+ *
+ * @param dest Destination buffer
+ * @param src Source string
+ * @param dest_size Size of destination buffer
+ */
+static void html_escape(char *dest, const char *src, size_t dest_size) {
+    if (!dest || !src || dest_size == 0) return;
+
+    size_t j = 0;
+    for (size_t i = 0; src[i] != '\0' && j < dest_size - 1; i++) {
+        if (src[i] == '<' && j + 4 < dest_size) {
+            memcpy(dest + j, "&lt;", 4);
+            j += 4;
+        } else if (src[i] == '>' && j + 4 < dest_size) {
+            memcpy(dest + j, "&gt;", 4);
+            j += 4;
+        } else if (src[i] == '&' && j + 5 < dest_size) {
+            memcpy(dest + j, "&amp;", 5);
+            j += 5;
+        } else if (src[i] == '"' && j + 6 < dest_size) {
+            memcpy(dest + j, "&quot;", 6);
+            j += 6;
+        } else if (src[i] == '\'' && j + 5 < dest_size) {
+            memcpy(dest + j, "&#39;", 5);
+            j += 5;
+        } else {
+            dest[j++] = src[i];
+        }
+    }
+    dest[j] = '\0';
+}
+
+/**
  * @brief Exports report as HTML
  *
  * @param path Output file path
@@ -2044,19 +2084,22 @@ static bool export_html(const char *path, const StrList *lines) {
     fprintf(fp, "<p>Generated: %s</p>\n", __DATE__);
     fprintf(fp, "<pre>\n");
 
-    /* Write content with severity highlighting */
+    /* Write content with severity highlighting and HTML escaping */
+    char escaped[BUF_LARGE * 2]; /* Buffer for escaped content */
     for (size_t i = 0; i < lines->len; i++) {
         const char *line = lines->items[i];
+        html_escape(escaped, line, sizeof(escaped));
+
         if (strncmp(line, "[CRITICAL]", 10) == 0) {
-            fprintf(fp, "<span class=\"critical\">%s</span>\n", line);
+            fprintf(fp, "<span class=\"critical\">%s</span>\n", escaped);
         } else if (strncmp(line, "[HIGH]", 6) == 0) {
-            fprintf(fp, "<span class=\"high\">%s</span>\n", line);
+            fprintf(fp, "<span class=\"high\">%s</span>\n", escaped);
         } else if (strncmp(line, "[MEDIUM]", 8) == 0) {
-            fprintf(fp, "<span class=\"medium\">%s</span>\n", line);
+            fprintf(fp, "<span class=\"medium\">%s</span>\n", escaped);
         } else if (strncmp(line, "[LOW]", 5) == 0) {
-            fprintf(fp, "<span class=\"low\">%s</span>\n", line);
+            fprintf(fp, "<span class=\"low\">%s</span>\n", escaped);
         } else {
-            fprintf(fp, "%s\n", line);
+            fprintf(fp, "%s\n", escaped);
         }
     }
 
@@ -2089,28 +2132,31 @@ static bool export_markdown(const char *path, const StrList *lines) {
     fprintf(fp, "**Generated:** %s\n\n", __DATE__);
     fprintf(fp, "---\n\n");
 
-    /* Write content with markdown formatting */
+    /* Write content with markdown formatting and HTML escaping */
+    char escaped[BUF_LARGE * 2]; /* Buffer for escaped content */
     for (size_t i = 0; i < lines->len; i++) {
         const char *line = lines->items[i];
+        html_escape(escaped, line, sizeof(escaped));
 
         /* Format severity tags as badges */
         if (strncmp(line, "[CRITICAL]", 10) == 0) {
-            fprintf(fp, "🔴 **%s**\n", line);
+            fprintf(fp, "🔴 **%s**\n", escaped);
         } else if (strncmp(line, "[HIGH]", 6) == 0) {
-            fprintf(fp, "🟠 **%s**\n", line);
+            fprintf(fp, "🟠 **%s**\n", escaped);
         } else if (strncmp(line, "[MEDIUM]", 8) == 0) {
-            fprintf(fp, "🟡 **%s**\n", line);
+            fprintf(fp, "🟡 **%s**\n", escaped);
         } else if (strncmp(line, "[LOW]", 5) == 0) {
-            fprintf(fp, "🔵 **%s**\n", line);
+            fprintf(fp, "🔵 **%s**\n", escaped);
         } else if (strncmp(line, "==", 2) == 0) {
             /* Headers */
-            fprintf(fp, "\n## %s\n\n", line + 3);
+            html_escape(escaped, line + 3, sizeof(escaped));
+            fprintf(fp, "\n## %s\n\n", escaped);
         } else if (strstr(line, "Summary:")) {
-            fprintf(fp, "\n### %s\n\n", line);
+            fprintf(fp, "\n### %s\n\n", escaped);
         } else if (strstr(line, "Score:")) {
-            fprintf(fp, "**%s**\n\n", line);
+            fprintf(fp, "**%s**\n\n", escaped);
         } else {
-            fprintf(fp, "%s\n", line);
+            fprintf(fp, "%s\n", escaped);
         }
     }
 
@@ -2725,7 +2771,32 @@ static void init_ncurses(void) {
 }
 
 /* Entry point: run the TUI event loop. */
-int main(void) {
+int main(int argc, char *argv[]) {
+    /* Handle command line arguments */
+    if (argc > 1) {
+        if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0) {
+            printf("trivytui version %s\n", APP_VERSION);
+            printf("Terminal UI for Trivy security scanner\n");
+            printf("License: CC0 1.0 Universal (Public Domain)\n");
+            return 0;
+        } else if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+            printf("trivytui - Terminal UI for Trivy security scanner\n\n");
+            printf("Usage: trivytui [OPTIONS]\n\n");
+            printf("Options:\n");
+            printf("  -v, --version    Show version information\n");
+            printf("  -h, --help       Show this help message\n\n");
+            printf("Interactive mode (no arguments):\n");
+            printf("  Launch the ncurses-based terminal UI for Trivy scanning.\n");
+            printf("  Navigate with arrow keys, use 'e' to exit.\n\n");
+            printf("Version: %s\n", APP_VERSION);
+            return 0;
+        } else {
+            fprintf(stderr, "Unknown option: %s\n", argv[1]);
+            fprintf(stderr, "Use --help for usage information\n");
+            return 1;
+        }
+    }
+
     init_ncurses();
     ScanConfig cfg;
     init_scan_config(&cfg);

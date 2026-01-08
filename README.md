@@ -79,19 +79,49 @@ sudo make altinstall
 
 Binary builds are provided in Releases.
 
+## Version Management
+
+The project uses automated version detection:
+
+1. **Git tags** (preferred): Version is automatically extracted from git tags
+2. **Manual override**: Use `VERSION=x.x.x` for custom versions
+3. **Hardcoded fallback**: Uses version 0.9.3 if no tags exist
+
+```bash
+# Check detected version
+make show-version
+
+# Build with auto-detected version (from git tags or fallback)
+make
+
+# Build with specific version
+make VERSION=1.0.0
+
+# Create a new release
+git tag -a v0.9.4 -m "Release v0.9.4"
+git push origin v0.9.4
+make  # Automatically uses 0.9.4
+
+# Check binary version
+./trivytui --version
+```
+
 ## Building Packages
 
 To create RPM and DEB packages (requires Rocky Linux 8.10 or compatible):
 
 ```bash
-# Build both RPM and DEB packages
+# Build with auto-detected version
 sudo make packages
+
+# Build with specific version
+sudo make packages VERSION=0.9.4
 ```
 
   Packages will be created in build/ directory:
-  - trivytui-0.9.2-1.el8.x86_64.rpm
-  - trivytui_0.9.2-1_amd64.deb
-  - trivytui-0.9.2.tar.gz
+  - trivytui-0.9.3-1.el8.x86_64.rpm
+  - trivytui_0.9.3-1_amd64.deb
+  - trivytui-0.9.3.tar.gz
   - SHA256SUMS
 
 The packaging script uses:
@@ -287,22 +317,24 @@ Search in descriptions:       /buffer overflow
 
 ## Changelog
 
+### Version 0.9.3 (2026)
+- Fixed reporting errors if CVE text contained a script html tag.
+
 ### Version 0.9.2 (2026)
 - Added airgap helpers
 - Fixed small bugs
 - Fixed offline functionality
 
 ### Version 0.9.1 (2026)
-- **NEW Features**:
-  - Airgap staging and installation scripts added
-  - History view with scan tracking and security scores
-  - Automatic tracking of last 10 scans with statistics
-  - Color-coded severity bar charts in history view
-  - Dynamic menu labels showing history status
-  - Search & filter in report viewer (press `/`)
-  - Export to HTML and Markdown formats (press `x`)
-  - Interactive export format menu
-  - Real-time filter status display
+- Airgap staging and installation scripts added
+- History view with scan tracking and security scores
+- Automatic tracking of last 10 scans with statistics
+- Color-coded severity bar charts in history view
+- Dynamic menu labels showing history status
+- Search & filter in report viewer (press `/`)
+- Export to HTML and Markdown formats (press `x`)
+- Interactive export format menu
+- Real-time filter status display
 - **Security**: Input validation, buffer overflow fixes, path traversal protection
 - **Quality**: Reduced global state, comprehensive documentation, unit tests
 - **Refactoring**: Named constants, improved error handling

@@ -14,6 +14,7 @@
 #   CFLAGS     - Compiler flags
 #   PREFIX     - Install prefix for 'make install' (default: /usr/local)
 #   ALT_PREFIX - Install prefix for 'make altinstall' (default: /opt/trivytui)
+#   VERSION    - Package version for 'make packages' (default: 0.0.0)
 
 CC ?= gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -pedantic
@@ -29,12 +30,26 @@ BINDIR ?= $(PREFIX)/bin
 ALT_PREFIX ?= /opt/$(TARGET)
 ALT_BINDIR ?= $(ALT_PREFIX)/bin
 
-.PHONY: all clean install altinstall test check packages
+# Version detection: Git tags → hardcoded fallback → manual override
+# Usage: make                    (uses git tags or 0.9.3)
+#        make VERSION=1.0.0      (manual override)
+#        make packages VERSION=1.0.0
+GIT_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+VERSION ?= $(if $(GIT_VERSION),$(GIT_VERSION),0.9.3)
+
+.PHONY: all clean install altinstall test check packages show-version
 
 all: $(TARGET)
 
+# Helper target to show detected version
+show-version:
+	@echo "Detected version: $(VERSION)"
+	@echo "Git version: $(if $(GIT_VERSION),$(GIT_VERSION),(none - using fallback))"
+	@echo ""
+	@echo "To set manually: make VERSION=1.0.0"
+
 $(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SRCS) $(LIBS) -o $(TARGET)
+	$(CC) $(CFLAGS) -DAPP_VERSION=\"$(VERSION)\" $(LDFLAGS) $(SRCS) $(LIBS) -o $(TARGET)
 
 $(TEST_TARGET): $(TEST_SRCS)
 	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_SRCS) -lm
@@ -65,4 +80,4 @@ packages:
 		exit 1; \
 	fi
 	@chmod +x build-packages.sh
-	@./build-packages.sh
+	@./build-packages.sh $(VERSION)

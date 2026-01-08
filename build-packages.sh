@@ -56,8 +56,8 @@ PKG_DESCRIPTION="Interactive ncurses-based terminal interface for the Trivy vuln
 Supports filesystem and Docker image scanning with colorized output, search/filter, \
 export to multiple formats, and scan history tracking."
 PKG_LICENSE="CC0-1.0"
-PKG_URL="https://github.com/vluz/trivytui"
-MAINTAINER="Victor Luz <vluz@me.com>"
+PKG_URL="https://intranet.gimm.pt/apps/git/sysadmin/trivytui"
+MAINTAINER="Victor Luz <victor.e.luz@gimm.pt>"
 
 # Directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
