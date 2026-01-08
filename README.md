@@ -7,7 +7,9 @@ vulnerabilities, secrets, and licenses.
 Built as over-the-holidays project to scare my sysadmin colleagues. :)      
 Utility and convenience might also been my goals but scaring was definitely up there.
 
-**Version 0.9.2** - Added airgapped scripts
+**Version 0.9.3** - Reports now display descriptions correctly. Fixed versions troughout.
+
+Version 0.9.2 - Added airgapped scripts
 
 Version 0.9.1 - Security hardened with comprehensive input validation, buffer overflow protection, and improved code quality.
 
